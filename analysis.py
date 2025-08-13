@@ -1,22 +1,33 @@
-import os,re,io,json,time,base64,math,requests,pandas as pd,numpy as np
+import os,re,io,json,time,base64,requests,pandas as pd,numpy as np
 from bs4 import BeautifulSoup
-from datetime import datetime
 from PIL import Image
 import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
+
 OPENAI_ENABLED=False
+GENAI_ENABLED=False
 if os.getenv("OPENAI_API_KEY"):
     try:
         import openai
         openai.api_key=os.getenv("OPENAI_API_KEY")
         OPENAI_ENABLED=True
-    except: OPENAI_ENABLED=False
+    except:
+        OPENAI_ENABLED=False
+if os.getenv("GENAI_API_KEY"):
+    try:
+        import google.generativeai as genai
+        genai.configure(api_key=os.getenv("GENAI_API_KEY"))
+        GENAI_ENABLED=True
+    except:
+        GENAI_ENABLED=False
+
 IMG_SIZE_LIMIT_BYTES=100_000
 WIKI_HIGHEST_URL="https://en.wikipedia.org/wiki/List_of_highest-grossing_films"
-def now(): return time.time()
+
 def to_data_uri(img_bytes,mime="image/png"):
     return f"data:{mime};base64,{base64.b64encode(img_bytes).decode('ascii')}"
+
 def compress_image_to_limit(pil_img,size_limit=IMG_SIZE_LIMIT_BYTES):
     out=io.BytesIO()
     try: pil_img.save(out,format="PNG",optimize=True)
@@ -34,13 +45,16 @@ def compress_image_to_limit(pil_img,size_limit=IMG_SIZE_LIMIT_BYTES):
             if out.tell()<=size_limit: out.seek(0); return to_data_uri(out.read(),"image/webp"),out.tell()
         scale-=0.1
     out.seek(0); return to_data_uri(out.read(),"image/webp"),out.tell()
+
 def fig_to_data_uri(fig,size_limit=IMG_SIZE_LIMIT_BYTES,fmt="png"):
     buf=io.BytesIO(); fig.savefig(buf,format=fmt,bbox_inches="tight"); buf.seek(0)
     try: img=Image.open(buf).convert("RGBA")
     except: buf.seek(0); return to_data_uri(buf.read(),f"image/{fmt}"),len(buf.getvalue())
     return compress_image_to_limit(img,size_limit=size_limit)
+
 def fetch_url_text(url,timeout=15):
     r=requests.get(url,headers={"User-Agent":"tds-agent/1.0"},timeout=timeout); r.raise_for_status(); return r.text
+
 def parse_wikipedia_highest(html_text):
     soup=BeautifulSoup(html_text,"html.parser")
     table=None
@@ -84,6 +98,7 @@ def parse_wikipedia_highest(html_text):
         result['rank']=maybe_rank if maybe_rank.notna().sum()>0 else np.arange(1,len(result)+1)
     result['peak']=result['gross']
     return result
+
 def wiki_highest_handler():
     df=parse_wikipedia_highest(fetch_url_text(WIKI_HIGHEST_URL))
     cnt=int(((df['peak']>=2e9)&(df['year']<2000)).sum())
@@ -98,18 +113,33 @@ def wiki_highest_handler():
         m,b=np.polyfit(plot_df['rank'],plot_df['peak'],1)
         xs=np.linspace(plot_df['rank'].min(),plot_df['rank'].max(),200); ys=m*xs+b
         ax.plot(xs,ys,linestyle=':',color='red'); ax.set_xlabel('Rank'); ax.set_ylabel('Peak (USD)'); ax.set_title('Rank vs Peak')
-    else: ax.text(0.5,0.5,"Not enough data",ha='center')
+    else:
+        ax.text(0.5,0.5,"Not enough data",ha='center')
     uri,_=fig_to_data_uri(fig); plt.close(fig)
     return [cnt,earliest,round(c,6),uri]
+
 def try_load_tabular(file_path):
-    ext=file_path.lower()
     try:
-        if ext.endswith((".parquet",".pq")): return pd.read_parquet(file_path)
+        if file_path.lower().endswith((".parquet",".pq")): return pd.read_parquet(file_path)
         return pd.read_csv(file_path)
     except:
         with open(file_path,"rb") as f: b=f.read()
-        try: return pd.read_csv(io.StringIO(b.decode("utf-8",errors="replace")))
-        except: raise
+        return pd.read_csv(io.StringIO(b.decode("utf-8",errors="replace")))
+
+def llm_answer(prompt):
+    if OPENAI_ENABLED:
+        try:
+            r=openai.ChatCompletion.create(model="gpt-4o-mini",messages=[{"role":"user","content":prompt}],temperature=0)
+            return r["choices"][0]["message"]["content"].strip()
+        except: pass
+    if GENAI_ENABLED:
+        try:
+            m=genai.GenerativeModel("gemini-1.5-flash")
+            r=m.generate_content(prompt)
+            return (r.text or "").strip()
+        except: pass
+    return None
+
 def generic_handler(files_dict,q_text):
     out={}
     tab_file=None; tab_name=None
@@ -117,56 +147,67 @@ def generic_handler(files_dict,q_text):
         if k.lower().endswith(('.csv','.parquet','.pq')): tab_file=v; tab_name=k; break
     df=None
     if tab_file:
-        import tempfile
+        import tempfile,os
         with tempfile.NamedTemporaryFile(delete=False,suffix=os.path.splitext(tab_name)[1]) as tmp:
             tmp.write(tab_file); tmp_path=tmp.name
         try: df=try_load_tabular(tmp_path)
-        finally: os.unlink(tmp_path)
-    for line in q_text.strip().splitlines():
-        key=line.strip()
+        finally:
+            try: os.unlink(tmp_path)
+            except: pass
+    for raw in q_text.strip().splitlines():
+        key=raw.strip()
         if not key: continue
         ans=None
-        low_key=key.lower()
+        low=key.lower()
         if df is not None:
-            if "average" in low_key or "mean" in low_key:
-                num_cols=df.select_dtypes(include=[np.number])
-                if not num_cols.empty: ans=float(num_cols.mean().mean())
-            elif "max" in low_key:
-                num_cols=df.select_dtypes(include=[np.number])
-                if not num_cols.empty: ans=float(num_cols.max().max())
-            elif "min" in low_key:
-                num_cols=df.select_dtypes(include=[np.number])
-                if not num_cols.empty: ans=float(num_cols.min().min())
-            elif "correlation" in low_key:
+            if "average" in low or "mean" in low:
+                nums=df.select_dtypes(include=[np.number])
+                if not nums.empty: ans=float(nums.mean().mean())
+            elif "median" in low:
+                nums=df.select_dtypes(include=[np.number])
+                if not nums.empty: ans=float(nums.median().median())
+            elif "sum" in low or "total" in low:
+                nums=df.select_dtypes(include=[np.number])
+                if not nums.empty: ans=float(nums.sum().sum())
+            elif "max" in low:
+                nums=df.select_dtypes(include=[np.number])
+                if not nums.empty: ans=float(nums.max().max())
+            elif "min" in low:
+                nums=df.select_dtypes(include=[np.number])
+                if not nums.empty: ans=float(nums.min().min())
+            elif "std" in low or "standard deviation" in low:
+                nums=df.select_dtypes(include=[np.number])
+                if not nums.empty: ans=float(nums.std().mean())
+            elif "correlation" in low or "corr(" in low:
                 nums=df.select_dtypes(include=[np.number])
                 if nums.shape[1]>=2: ans=float(nums.corr().iloc[0,1])
-            elif "plot" in low_key or "chart" in low_key or "graph" in low_key:
+            elif "count" in low and "rows" in low or "number of rows" in low:
+                ans=int(len(df))
+            elif ("plot" in low or "chart" in low or "graph" in low) and df.select_dtypes(include=[np.number]).shape[1]>=1:
                 nums=df.select_dtypes(include=[np.number])
-                if nums.shape[1]>=2:
-                    fig,ax=plt.subplots(figsize=(6,4))
-                    ax.scatter(nums.iloc[:,0],nums.iloc[:,1])
+                if nums.shape[1]==1:
+                    s=nums.iloc[:,0]
+                    fig,ax=plt.subplots(figsize=(6,4)); ax.plot(s.index,s.values,marker='o'); ax.set_xlabel('Index'); ax.set_ylabel(nums.columns[0]); uri,_=fig_to_data_uri(fig); plt.close(fig); ans=uri
+                else:
+                    x=nums.iloc[:,0]; y=nums.iloc[:,1]
+                    fig,ax=plt.subplots(figsize=(6,4)); ax.scatter(x,y)
                     try:
-                        m,b=np.polyfit(nums.iloc[:,0],nums.iloc[:,1],1)
-                        xs=np.linspace(nums.iloc[:,0].min(),nums.iloc[:,0].max(),200)
-                        ys=m*xs+b
-                        ax.plot(xs,ys,linestyle=':',color='red')
+                        m,b=np.polyfit(x,y,1); xs=np.linspace(x.min(),x.max(),200); ys=m*xs+b; ax.plot(xs,ys,linestyle=':',color='red')
                     except: pass
-                    uri,_=fig_to_data_uri(fig); plt.close(fig); ans=uri
-        if ans is None and OPENAI_ENABLED:
-            try:
-                resp=openai.ChatCompletion.create(model="gpt-4o-mini",messages=[{"role":"user","content":f"Answer this based on dataset columns {list(df.columns) if df is not None else 'No dataset'}:\n{key}"}],temperature=0)
-                ans=resp["choices"][0]["message"]["content"].strip()
-            except: ans="Unable to answer"
-        if ans is None: ans="Unable to answer"
+                    ax.set_xlabel(nums.columns[0]); ax.set_ylabel(nums.columns[1]); uri,_=fig_to_data_uri(fig); plt.close(fig); ans=uri
+        if ans is None:
+            cols=list(df.columns) if df is not None else []
+            hint=f"Dataset columns: {cols}" if cols else "No dataset provided."
+            llm=llm_answer(hint+"\nQuestion:\n"+key)
+            ans=llm if (llm is not None and llm!="") else "Unable to answer"
         out[key]=ans
     return out
+
 def handle_analysis(files):
     if "questions.txt" not in files: return {"error":"questions.txt required."}
-    try: q_text=files["questions.txt"].decode("utf-8",errors="replace")
-    except: q_text=files["questions.txt"].decode("latin-1",errors="replace")
-    if "list_of_highest-grossing_films" in q_text.lower() or "highest grossing films" in q_text.lower() or WIKI_HIGHEST_URL.lower() in q_text.lower():
+    try: q=files["questions.txt"].decode("utf-8",errors="replace")
+    except: q=files["questions.txt"].decode("latin-1",errors="replace")
+    if "list_of_highest-grossing_films" in q.lower() or "highest grossing films" in q.lower() or WIKI_HIGHEST_URL.lower() in q.lower():
         try: return wiki_highest_handler()
         except Exception as e: return {"error":"wiki_handler_failed","detail":str(e)}
-    return generic_handler(files,q_text)
-if __name__=="__main__":
-    print("Module test skipped.")
+    return generic_handler(files,q)
