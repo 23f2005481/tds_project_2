@@ -1,11 +1,11 @@
-fastapi
-uvicorn
-aiofiles
-python-multipart
+flask
+gunicorn
+python-dotenv
+google-generativeai
 pandas
 numpy
 matplotlib
+scikit-learn
 beautifulsoup4
 requests
-Pillow
-openai
+duckdb
