@@ -1,21 +1,62 @@
-from fastapi import FastAPI, File, UploadFile
-from fastapi.responses import JSONResponse
 import os
-from analysis import handle_analysis
+import uuid
+import logging
+from flask import Flask, request, jsonify
+from dotenv import load_dotenv
 
-app = FastAPI()
+load_dotenv()
 
-@app.post("/api/")
-async def api(files: list[UploadFile] = File(...)):
+from agent.agent import run_agent
+
+app = Flask(__name__)
+
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
+logger = logging.getLogger(__name__)
+
+WORKSPACE_DIR = os.path.join(os.getcwd(), "workspaces")
+os.makedirs(WORKSPACE_DIR, exist_ok=True)
+
+
+@app.route("/")
+def index():
+    return "Data Analyst Agent is running."
+
+
+@app.route("/api/", methods=['POST'])
+def api():
+    request_id = str(uuid.uuid4())
+    request_workspace = os.path.join(WORKSPACE_DIR, request_id)
+    os.makedirs(request_workspace, exist_ok=True)
+    logger.info(f"Created workspace: {request_workspace}")
+
     try:
-        file_data = {}
-        for f in files:
-            file_data[f.filename] = await f.read()
-        result = handle_analysis(file_data)
-        return JSONResponse(content=result, media_type="application/json")
+        if 'questions.txt' not in request.files:
+            logger.error("Bad Request: 'questions.txt' is missing.")
+            return jsonify({"error": "questions.txt is a required file."}), 400
+
+        uploaded_files = {}
+        for filename, file_storage in request.files.items():
+            file_path = os.path.join(request_workspace, filename)
+            file_storage.save(file_path)
+            uploaded_files[filename] = file_path
+            logger.info(f"Saved file '{filename}' to '{file_path}'")
+
+        with open(uploaded_files['questions.txt'], 'r') as f:
+            prompt = f.read()
+
+        logger.info(f"Invoking agent for request {request_id}...")
+        result = run_agent(prompt, request_workspace)
+        logger.info(f"Agent finished for request {request_id}.")
+
+        return jsonify(result)
+
     except Exception as e:
-        return JSONResponse(content={"error": str(e)}, media_type="application/json", status_code=500)
+        logger.exception(f"An unexpected error occurred for request {request_id}: {e}")
+        return jsonify({"error": "An internal server error occurred.", "details": str(e)}), 500
 
 if __name__ == "__main__":
-    import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=int(os.environ.get("PORT", 10000)))
+    app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 8080)))
+
