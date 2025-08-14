@@ -1,100 +1,151 @@
-TDS Data Analyst Agent
-This project is a sophisticated, AI-powered data analyst agent. It uses a Large Language Model (LLM) within a Reason+Act (ReAct) framework to dynamically source, prepare, analyze, and visualize data based on natural language instructions.
 
-The agent is designed to be flexible, resilient, and capable of handling a wide range of data analysis tasks, from web scraping to querying large datasets and generating visualizations.
+# **TDS Data Analyst Agent**
 
-🚀 Features
-Agentic Framework: Built using a tool-based agentic architecture. The LLM can intelligently choose from a set of tools to accomplish a task.
+> 🧠 Autonomous AI-powered Data Analyst — source, prepare, analyze & visualize data from natural language instructions.
 
-Dynamic Code Generation: Generates and executes Python code on the fly to perform complex data manipulation, analysis, and visualization.
+![Python](https://img.shields.io/badge/Python-3.9%2B-blue?logo=python)
+![License](https://img.shields.io/badge/License-MIT-green)
+![Status](https://img.shields.io/badge/Status-Production%20Ready-brightgreen)
+![Framework](https://img.shields.io/badge/Framework-Flask-orange?logo=flask)
 
-Secure Code Execution: Executes generated code in a secure environment to prevent malicious actions.
+---
 
-Toolbox:
+## 🚀 Overview
 
-Python REPL: For general-purpose data analysis using libraries like Pandas, NumPy, and Matplotlib.
+The **TDS Data Analyst Agent** is a **Reason + Act (ReAct)** AI framework powered by an LLM that can dynamically perform **data sourcing, cleaning, analysis, and visualization**.
+It intelligently chooses tools, generates Python code, and executes it securely — handling everything from **web scraping** to **large dataset queries** and **custom charts**.
 
-Web Scraper: To fetch content from URLs.
+---
 
-FileSystem Tools: To list, read, and write files within its secure workspace.
+## ✨ Features
 
-Resilience & Self-Correction: The agent can reason about errors from its tools and attempt to correct its approach, making it robust.
+* 🤖 **Agentic Framework** – LLM selects and uses tools based on tasks.
+* ⚡ **Dynamic Code Execution** – Generates Python code for Pandas, NumPy, Matplotlib, etc.
+* 🔒 **Secure Sandbox** – Isolated environment prevents malicious actions.
+* 🛠 **Toolbox**:
 
-Ready for Deployment: Includes configuration files (Dockerfile, render.yaml) for easy deployment to cloud platforms like Render.
+  * Python REPL for data analysis
+  * Web Scraper for real-time data fetching
+  * File system tools for secure file handling
+* 🔄 **Resilience** – Detects errors, retries with self-corrections.
+* ☁ **Deployment Ready** – Pre-configured with Docker & Render YAML.
 
-⚙️ Project Structure
-/data-analyst-agent
-|
-├── workspaces/         # Auto-created for temporary request files
-|
-├── app.py              # Main Flask application and API endpoint
-├── requirements.txt    # Project dependencies
-├── Dockerfile          # For building the deployment container
-├── render.yaml         # Configuration for deploying to Render
+---
+
+## 📂 Project Structure
+
+```
+data-analyst-agent/
+│
+├── workspaces/         # Temp storage for each request
+│
+├── app.py              # Flask API application
+├── requirements.txt    # Dependencies
+├── Dockerfile          # Container build config
+├── render.yaml         # Render deployment config
 ├── .gitignore
 ├── LICENSE
-|
+│
 └── agent/
     ├── __init__.py
-    ├── agent.py        # Core ReAct agent logic
-    ├── prompts.py      # System prompts for the LLM
-    └── tools.py        # Definitions for the agent's tools
+    ├── agent.py        # ReAct agent logic
+    ├── prompts.py      # System prompts for LLM
+    └── tools.py        # Tool definitions
+```
 
-🛠️ Local Setup
-Prerequisites
-Python 3.9+
+---
 
-Pip
+## ⚙️ Setup
 
-Git
+<details>
+<summary><strong>📌 Local Installation</strong></summary>
 
-Installation
-Clone the repository:
+**Prerequisites**
 
+* Python 3.9+
+* Pip
+* Git
+
+**Steps**
+
+```bash
+# Clone repository
 git clone <your-repo-url>
 cd data-analyst-agent
 
-Create a virtual environment:
-
+# Create virtual environment
 python -m venv venv
-source venv/bin/activate  # On Windows, use `venv\Scripts\activate`
+source venv/bin/activate  # Windows: venv\Scripts\activate
 
-Install dependencies:
-
+# Install dependencies
 pip install -r requirements.txt
 
-Set up environment variables:
-Create a file named .env in the project root and add your Google API key:
+# Add your API key
+echo 'GENAI_API_KEY="your_google_ai_studio_api_key"' > .env
 
-GENAI_API_KEY="your_google_ai_studio_api_key"
-
-Run the application:
-
+# Run the application
 gunicorn app:app
+```
 
-The application will be running at http://127.0.0.1:8000.
+App runs on: `http://127.0.0.1:8000`
 
-☁️ Deployment to Render
-This project is configured for easy deployment on Render.
+</details>
 
-Create a new public GitHub repository and push the project code to it.
+---
 
-Go to the Render Dashboard and create a New Web Service.
+## ☁ Deployment to Render
 
-Connect your GitHub repository.
+<details>
+<summary><strong>🚀 Render Deployment Guide</strong></summary>
 
-Render will automatically detect the render.yaml file. Give your service a name and click Create Web Service.
+1. Push code to a **public GitHub repo**.
+2. On **Render Dashboard** → Click **New Web Service**.
+3. Connect your repo.
+4. Render detects `render.yaml` → Configure service name → Deploy.
+5. Your API will be live at the provided Render URL.
 
-Render will then build and deploy your application. Your API will be live at the URL provided by Render.
+</details>
 
-🧪 How to Use the API
-The API endpoint is /api/. It accepts POST requests with multipart/form-data.
+---
 
-You must provide a questions.txt file containing the instructions for the agent. You can also provide other data files (e.g., .csv, .png).
+## 🧪 API Usage
 
-Example using cURL:
+**Endpoint:** `/api/`
+**Method:** `POST`
+**Type:** `multipart/form-data`
+
+**Required:**
+
+* `questions.txt` → Contains natural language instructions for the agent.
+
+**Optional:**
+
+* Additional data files (CSV, PNG, etc.) for analysis.
+
+**Example Request:**
+
+```bash
 curl -X POST https://your-render-app-url/api/ \
-     -F "questions.txt=@path/to/your/questions.txt" \
-     -F "data.csv=@path/to/your/data.csv"
+     -F "questions.txt=@path/to/questions.txt" \
+     -F "data.csv=@path/to/data.csv"
+```
 
-The agent will process the request and return a JSON response with the answers.
+**Example Response:**
+
+```json
+{
+  "status": "success",
+  "answers": [
+    "Data summary generated...",
+    "Visualization saved as chart.png"
+  ]
+}
+```
+
+---
+
+## 📜 License
+
+This project is licensed under the **MIT License**. See [LICENSE](LICENSE) for details.
+
+---
