@@ -1,0 +1,158 @@
+
+[2025-08-15 16:51:58]
+📜 Executing Code:
+import os
+import pandas as pd
+import io
+
+# Define the directory and file paths
+output_dir = "uploads/6bda84f6-e4a0-472c-aca5-77dadb2c8781"
+input_csv_path = os.path.join(output_dir, "sample-sales.csv")
+output_csv_path = os.path.join(output_dir, "data.csv")
+metadata_file_path = os.path.join(output_dir, "metadata.txt")
+
+# Create the directory if it does not exist
+os.makedirs(output_dir, exist_ok=True)
+
+# Load the dataset from the uploaded file
+df = pd.read_csv(input_csv_path)
+
+# Save the dataframe to a new file as requested by the instructions
+df.to_csv(output_csv_path, index=False)
+
+# Generate metadata
+# Capture df.info() output
+buffer = io.StringIO()
+df.info(buf=buffer)
+info_str = buffer.getvalue()
+
+# Get column names
+column_names = df.columns.tolist()
+
+# Get first few rows
+head_str = df.head().to_string()
+
+# Define the answer format from the user's question file
+answer_format = """{
+- `total_sales`: number
+- `top_region`: string
+- `day_sales_correlation`: number
+- `bar_chart`: base64 PNG string under 100kB
+- `median_sales`: number
+- `total_sales_tax`: number
+- `cumulative_sales_chart`: base64 PNG string under 100kB
+}"""
+
+
+# Write metadata to a file
+with open(metadata_file_path, "w") as f:
+    f.write(f"Path to data file: {output_csv_path}\n\n")
+    f.write("df.info():\n")
+    f.write(info_str)
+    f.write("\n\nColumn Names:\n")
+    f.write(str(column_names))
+    f.write("\n\nFirst 5 rows (df.head()):\n")
+    f.write(head_str)
+    f.write("\n\nANSWER_FORMAT:\n")
+    f.write(answer_format)
+
+print(f"Data saved to {output_csv_path}")
+print(f"Metadata saved to {metadata_file_path}")
+
+----------------------------------------
+
+[2025-08-15 16:51:58]
+✅ Code executed successfully after installing libraries.
+----------------------------------------
+
+[2025-08-15 16:52:24]
+📜 Executing Code:
+import pandas as pd
+import matplotlib.pyplot as plt
+import json
+import io
+import base64
+
+# Load the data from the specified CSV file
+file_path = "uploads/6bda84f6-e4a0-472c-aca5-77dadb2c8781/data.csv"
+df = pd.read_csv(file_path)
+
+# --- Question 1: What is the total sales across all regions? ---
+total_sales = df["sales"].sum()
+
+# --- Question 2: Which region has the highest total sales? ---
+region_sales = df.groupby("region")["sales"].sum()
+top_region = region_sales.idxmax()
+
+# --- Question 3: What is the correlation between day of month and sales? ---
+df["date"] = pd.to_datetime(df["date"])
+df["day_of_month"] = df["date"].dt.day
+day_sales_correlation = df["day_of_month"].corr(df["sales"])
+
+# --- Question 4: Plot total sales by region as a bar chart with blue bars. ---
+plt.figure(figsize=(8, 5))
+region_sales.sort_values(ascending=False).plot(kind="bar", color="blue")
+plt.title("Total Sales by Region")
+plt.xlabel("Region")
+plt.ylabel("Total Sales")
+plt.xticks(rotation=0)
+plt.tight_layout()
+
+buf = io.BytesIO()
+plt.savefig(buf, format="png")
+plt.close()
+buf.seek(0)
+bar_chart_base64 = base64.b64encode(buf.read()).decode("utf-8")
+
+# --- Question 5: What is the median sales amount across all orders? ---
+median_sales = df["sales"].median()
+
+# --- Question 6: What is the total sales tax if the tax rate is 10%? ---
+tax_rate = 0.10
+total_sales_tax = total_sales * tax_rate
+
+# --- Question 7: Plot cumulative sales over time as a line chart with a red line. ---
+df_sorted = df.sort_values(by="date")
+df_sorted["cumulative_sales"] = df_sorted["sales"].cumsum()
+
+plt.figure(figsize=(10, 5))
+plt.plot(
+    df_sorted["date"],
+    df_sorted["cumulative_sales"],
+    marker="o",
+    linestyle="-",
+    color="red",
+)
+plt.title("Cumulative Sales Over Time")
+plt.xlabel("Date")
+plt.ylabel("Cumulative Sales")
+plt.grid(True)
+plt.tight_layout()
+
+buf_line = io.BytesIO()
+plt.savefig(buf_line, format="png")
+plt.close()
+buf_line.seek(0)
+cumulative_sales_chart_base64 = base64.b64encode(buf_line.read()).decode("utf-8")
+
+# Construct the final result dictionary
+result = {
+    "total_sales": int(total_sales),
+    "top_region": top_region,
+    "day_sales_correlation": day_sales_correlation,
+    "bar_chart": bar_chart_base64,
+    "median_sales": float(median_sales),
+    "total_sales_tax": float(total_sales_tax),
+    "cumulative_sales_chart": cumulative_sales_chart_base64,
+}
+
+# Save the result to a JSON file
+output_path = "uploads/6bda84f6-e4a0-472c-aca5-77dadb2c8781/result.json"
+with open(output_path, "w") as f:
+    json.dump(result, f)
+
+----------------------------------------
+
+[2025-08-15 16:52:24]
+✅ Code executed successfully after installing libraries.
+----------------------------------------

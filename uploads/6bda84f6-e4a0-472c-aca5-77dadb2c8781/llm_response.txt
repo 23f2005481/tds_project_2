@@ -1,0 +1,16 @@
+{
+    "code": "import os\nimport pandas as pd\nimport io\n\n# Define the directory and file paths\noutput_dir = \"uploads/6bda84f6-e4a0-472c-aca5-77dadb2c8781\"\ninput_csv_path = os.path.join(output_dir, \"sample-sales.csv\")\noutput_csv_path = os.path.join(output_dir, \"data.csv\")\nmetadata_file_path = os.path.join(output_dir, \"metadata.txt\")\n\n# Create the directory if it does not exist\nos.makedirs(output_dir, exist_ok=True)\n\n# Load the dataset from the uploaded file\ndf = pd.read_csv(input_csv_path)\n\n# Save the dataframe to a new file as requested by the instructions\ndf.to_csv(output_csv_path, index=False)\n\n# Generate metadata\n# Capture df.info() output\nbuffer = io.StringIO()\ndf.info(buf=buffer)\ninfo_str = buffer.getvalue()\n\n# Get column names\ncolumn_names = df.columns.tolist()\n\n# Get first few rows\nhead_str = df.head().to_string()\n\n# Define the answer format from the user's question file\nanswer_format = \"\"\"{\n- `total_sales`: number\n- `top_region`: string\n- `day_sales_correlation`: number\n- `bar_chart`: base64 PNG string under 100kB\n- `median_sales`: number\n- `total_sales_tax`: number\n- `cumulative_sales_chart`: base64 PNG string under 100kB\n}\"\"\"\n\n\n# Write metadata to a file\nwith open(metadata_file_path, 'w') as f:\n    f.write(f\"Path to data file: {output_csv_path}\\n\\n\")\n    f.write(\"df.info():\\n\")\n    f.write(info_str)\n    f.write(\"\\n\\nColumn Names:\\n\")\n    f.write(str(column_names))\n    f.write(\"\\n\\nFirst 5 rows (df.head()):\\n\")\n    f.write(head_str)\n    f.write(\"\\n\\nANSWER_FORMAT:\\n\")\n    f.write(answer_format)\n\nprint(f\"Data saved to {output_csv_path}\")\nprint(f\"Metadata saved to {metadata_file_path}\")\n",
+    "libraries": [
+        "pandas"
+    ],
+    "questions": [
+        "What is the total sales across all regions?",
+        "Which region has the highest total sales?",
+        "What is the correlation between day of month and sales? (Use the date column.)",
+        "Plot total sales by region as a bar chart with blue bars. Encode as base64 PNG.",
+        "What is the median sales amount across all orders?",
+        "What is the total sales tax if the tax rate is 10%?",
+        "Plot cumulative sales over time as a line chart with a red line. Encode as base64 PNG."
+    ],
+    "comment": "Step-3: Getting scrap code and metadata from llm. Tries count = %d 0"
+}

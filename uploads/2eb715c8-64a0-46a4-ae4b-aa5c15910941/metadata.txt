@@ -1,0 +1,31 @@
+path: uploads/2eb715c8-64a0-46a4-ae4b-aa5c15910941/data.csv
+description: A table of the highest-grossing films worldwide, scraped from Wikipedia.
+
+df.info():
+<class 'pandas.core.frame.DataFrame'>
+RangeIndex: 50 entries, 0 to 49
+Data columns (total 6 columns):
+ #   Column           Non-Null Count  Dtype 
+---  ------           --------------  ----- 
+ 0   Rank             50 non-null     int64 
+ 1   Peak             50 non-null     object
+ 2   Title            50 non-null     object
+ 3   Worldwide gross  50 non-null     object
+ 4   Year             50 non-null     int64 
+ 5   Ref              50 non-null     object
+dtypes: int64(2), object(4)
+memory usage: 2.5+ KB
+
+Column names:
+['Rank', 'Peak', 'Title', 'Worldwide gross', 'Year', 'Ref']
+
+First few rows (df.head()):
+   Rank Peak                     Title  Worldwide gross  Year          Ref
+0     1    1                    Avatar   $2,923,706,026  2009   [# 1][# 2]
+1     2    1         Avengers: Endgame   $2,797,501,328  2019   [# 3][# 4]
+2     3    3  Avatar: The Way of Water   $2,320,250,281  2022   [# 5][# 6]
+3     4    1                   Titanic  T$2,257,844,554  1997   [# 7][# 8]
+4     5    5                  Ne Zha 2   $2,212,300,000  2025  [# 9][# 10]
+
+ANSWER_FORMAT:
+JSON array of strings

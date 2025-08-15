@@ -1,0 +1,14 @@
+{
+    "code": "import pandas as pd\nimport os\nimport io\n\n# Define the output directory and create it if it doesn't exist\noutput_dir = 'uploads/2eb715c8-64a0-46a4-ae4b-aa5c15910941'\nos.makedirs(output_dir, exist_ok=True)\n\n# Define file paths for the data and metadata\ndata_path = os.path.join(output_dir, 'data.csv')\nmetadata_path = os.path.join(output_dir, 'metadata.txt')\n\n# URL of the Wikipedia page to scrape\nurl = 'https://en.wikipedia.org/wiki/List_of_highest-grossing_films'\n\n# Use pandas to read the HTML tables from the URL\ntables = pd.read_html(url)\n\n# The first table on the page is 'Highest-grossing films'\ndf = tables[0]\n\n# Save the extracted DataFrame to a CSV file\ndf.to_csv(data_path, index=False)\n\n# Generate the metadata file\nwith open(metadata_path, 'w', encoding='utf-8') as f:\n    # Write the path and a short description of the data file\n    f.write(f\"path: {data_path}\\n\")\n    f.write(\"description: A table of the highest-grossing films worldwide, scraped from Wikipedia.\\n\\n\")\n\n    # Capture and write the output of df.info()\n    buffer = io.StringIO()\n    df.info(buf=buffer)\n    info_str = buffer.getvalue()\n    f.write(\"df.info():\\n\")\n    f.write(info_str)\n    f.write(\"\\n\")\n\n    # Write the column names\n    f.write(\"Column names:\\n\")\n    f.write(str(df.columns.tolist()))\n    f.write(\"\\n\\n\")\n\n    # Write the first few rows of the DataFrame\n    f.write(\"First few rows (df.head()):\\n\")\n    f.write(df.head().to_string())\n    f.write(\"\\n\\n\")\n\n    # Write the answer format based on the user's request\n    f.write(\"ANSWER_FORMAT:\\n\")\n    f.write(\"JSON array of strings\")\n",
+    "libraries": [
+        "pandas",
+        "lxml"
+    ],
+    "questions": [
+        "How many $2 bn movies were released before 2000?",
+        "Which is the earliest film that grossed over $1.5 bn?",
+        "What's the correlation between the Rank and Peak?",
+        "Draw a scatterplot of Rank and Peak along with a dotted red regression line through it. Return as a base-64 encoded data URI, \"data:image/png;base64,iVBORw0KG...\" under 100,000 bytes."
+    ],
+    "comment": "Step-3: Getting scrap code and metadata from llm. Tries count = %d 0"
+}
